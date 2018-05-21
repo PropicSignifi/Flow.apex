@@ -1792,9 +1792,8 @@ public class Flow extends Func {
                 Object conditionValue = getComputedValue(this.segments.get(i), variables);
 
                 Boolean pass = false;
-                if(conditionValue instanceof Func) {
-                    Func conditionFunc = (Func)conditionValue;
-                    pass = toBoolean(conditionFunc.run(switchValue));
+                if(conditionValue instanceof Boolean) {
+                    pass = toBoolean(conditionValue);
                 }
                 else {
                     pass = (conditionValue == switchValue);

@@ -675,4 +675,17 @@ private class FlowTest {
             System.assert(true);
         }
     }
+
+    @isTest
+    private static void complexSwitchTest() {
+        Flow f = new Flow()
+            .inputAs('n').returnInteger()
+            .doSwitch('n', new List<Object>{
+                Flow.s('n == 1'), Flow.block().doReturn(1),
+                Flow.s('n != 1'), Flow.block().doReturn(2)
+            });
+
+        System.assertEquals(1, f.run(1));
+        System.assertEquals(2, f.run(2));
+    }
 }
