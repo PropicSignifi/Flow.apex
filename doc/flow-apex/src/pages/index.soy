@@ -1,0 +1,130 @@
+---
+title: "Home"
+description: "Flow.apex is a library to help you weave functions in a procedural style."
+---
+
+{namespace pageIndex}
+
+/**
+ */
+{template .render}
+	{@param site: ?}
+
+	{call main.render data="all"}
+		{param content kind="html"}
+			{call .header data="all" /}
+			{call .why /}
+			{call .features /}
+			{call .how /}
+			{call .highlights /}
+			{call Footer.render data="all" /}
+		{/param}
+	{/call}
+{/template}
+
+/**
+ */
+{template .header}
+	{@param site: ?}
+
+	<header class="header">
+		<div class="container">
+			<h1 class="header-title">{$site.title}</h1>
+			<h2 class="header-subtitle">{$site.index.description}</h2>
+			<div class="btn-group">
+				<a href="/flow-apex/tutorials/getting_started/step_1.html" class="btn btn-accent btn-sm">Get Started</a>
+				<a href="https://github.com/Click-to-Cloud/Flow.apex/" class="btn btn-success btn-sm">GitHub</a>
+				<a href="/" onclick="location.assign('/')" class="btn btn-default btn-sm">Not Interested</a>
+			</div>
+		</div>
+	</header>
+{/template}
+
+/**
+ */
+{template .why}
+	<article class="about">
+		<div class="container">
+			<div class="row">
+				<div class="col-md-12 col-md-offset-2">
+					<h3 class="about-title">Why Flow.apex?</h3>
+					<p class="about-description">Flow.apex is created to simplify the creation of a Function. It simulates the procedural invocation of Functions, and weave them to build a larger and more complicated Function. Flow.apex acts as a bridge between the small Funcs and big custom Funcs that you create by subclassing Func.</p>
+				</div>
+			</div>
+		</div>
+	</article>
+{/template}
+
+/**
+ */
+{template .features}
+	<div class="features">
+		<div class="container">
+			<div class="row">
+				<section class="feature col-md-4 col-md-offset-2">
+					<h3 class="feature-title">Fluent API</h3>
+					<p class="feature-description">Flow.apex offers a fluent API to build a custom Func without subclassing Func.</p>
+				</section>
+				<section class="feature col-md-4">
+					<h3 class="feature-title">Abundant Structures</h3>
+					<p class="feature-description">Flow.apex has adequate block structures to help weaving your Funcs.</p>
+				</section>
+				<section class="feature col-md-4">
+					<h3 class="feature-title">FlowScript Support</h3>
+					<p class="feature-description">Flow.apex enables a mechanism to support embedded scripting in Flows.</p>
+				</section>
+			</div>
+		</div>
+	</div>
+{/template}
+
+/**
+ */
+{template .how}
+	<article class="about">
+		<div class="container">
+			<div class="row">
+				<div class="col-md-12 col-md-offset-2">
+					<h3 class="about-title">One Step From R.apex</h3>
+					<p class="about-description">It is the cousin of R.apex, only more powerful.</p>
+				</div>
+			</div>
+		</div>
+	</article>
+{/template}
+
+/**
+ */
+{template .highlights}
+	<div class="highlights">
+		<div class="container">
+			<section class="highlight row">
+				<div class="col-md-6 col-md-offset-2">
+					<h4 class="highlight-title">Build Funcs</h4>
+					<p class="highlight-description">Flow.apex uses procedral structures to build Funcs in the form of Flows.</p>
+				</div>
+				<div class="col-md-5 col-md-offset-1">
+					<img class="highlight-image" src="/flow-apex/images/highlight_1.png" alt="Build Funcs" height="200">
+				</div>
+			</section>
+			<section class="highlight row">
+				<div class="col-md-6 col-md-push-9">
+					<h4 class="highlight-title">Code Blocks</h4>
+					<p class="highlight-description">Flow.apex not only creates Funcs, but also creates executable blocks of code.</p>
+				</div>
+				<div class="col-md-5 col-md-offset-2 col-md-pull-6">
+					<img class="highlight-image" src="/flow-apex/images/highlight_2.png" alt="Code Blocks" height="200">
+				</div>
+			</section>
+			<section class="highlight row">
+				<div class="col-md-6 col-md-offset-2">
+					<h4 class="highlight-title">FlowScript</h4>
+					<p class="highlight-description">Flow.apex includes a script that naturally integrates with R.apex and all of your Funcs.</p>
+				</div>
+				<div class="col-md-5 col-md-offset-1">
+					<img class="highlight-image" src="/flow-apex/images/highlight_3.png" alt="FlowScript" height="200">
+				</div>
+			</section>
+		</div>
+	</div>
+{/template}
