@@ -10,7 +10,7 @@ weight: 1
 
 ## {$page.title}
 
-Mapper.apex has a dependency on [R.apex](https://github.com/Click-to-Cloud/R.apex) and [Script.apex](https://github.com/Click-to-Cloud/Script.apex).
+Flow.apex has a dependency on [R.apex](https://github.com/Click-to-Cloud/R.apex) and [Script.apex](https://github.com/Click-to-Cloud/Script.apex).
 
 First, we will include R.apex.
 
