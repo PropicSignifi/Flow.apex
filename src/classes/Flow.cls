@@ -670,9 +670,6 @@ public class Flow extends Func {
         return this;
     }
 
-    // Keep track of the last used block
-    private static Block lastBlock = null;
-
     // A cache of the parsed FlowScripts
     private static final Map<String, Jsep.Node> cache = new Map<String, Jsep.Node>();
 
@@ -792,11 +789,7 @@ public class Flow extends Func {
      * @return IInvocation
      * */
     public static IInvocation getVar(String varName) {
-        if(Flow.lastBlock == null) {
-            throw new FlowException('No blocks found');
-        }
-
-        return Flow.lastBlock.getVar(varName);
+        return new VariableInvocation(null, varName);
     }
 
     /**
@@ -883,11 +876,7 @@ public class Flow extends Func {
      * @return IInvocation
      * */
     public static IInvocation call(Func f, List<Object> vars) {
-        if(Flow.lastBlock == null) {
-            throw new FlowException('No blocks found');
-        }
-
-        return Flow.lastBlock.call(f, vars);
+        return new FunctionInvocation(null, f, vars);
     }
 
     /**
@@ -962,9 +951,10 @@ public class Flow extends Func {
         return resultVariables;
     }
 
-    private static Object getComputedValue(Object value, Map<String, Object> context) {
+    private static Object getComputedValue(Object value, Map<String, Object> context, Block body) {
         if(value instanceof IInvocation) {
             IInvocation invocation = (IInvocation)value;
+            invocation.setBlock(body);
             return invocation.invoke(context);
         }
         else {
@@ -972,8 +962,8 @@ public class Flow extends Func {
         }
     }
 
-    private static Object getComputedValue(Object value) {
-        return getComputedValue(value, null);
+    private static Object getComputedValue(Object value, Block body) {
+        return getComputedValue(value, null, body);
     }
 
     private static Object getValue(String varName, Block body, Map<String, Object> context) {
@@ -985,7 +975,7 @@ public class Flow extends Func {
             return context.get(varName);
         }
 
-        if(body.hasVariable(varName)) {
+        if(body != null && body.hasVariable(varName)) {
             return body.getVariable(varName);
         }
 
@@ -1082,7 +1072,6 @@ public class Flow extends Func {
          * Construct a default block
          * */
         public Block() {
-            Flow.lastBlock = this;
         }
 
         /**
@@ -1179,9 +1168,9 @@ public class Flow extends Func {
         }
 
         private Block addStatement(IStatement expr) {
-            this.statements.add(expr);
+            expr.setBlock(this);
 
-            Flow.lastBlock = this;
+            this.statements.add(expr);
 
             return this;
         }
@@ -1575,9 +1564,23 @@ public class Flow extends Func {
      * */
     interface IStatement {
         Map<String, Object> execute(Map<String, Object> variables);
+
+        void setBlock(Block body);
     }
 
-    class VarStatement implements IStatement {
+    virtual class DefaultStatement implements IStatement {
+        protected Block parentBlock;
+
+        public void setBlock(Block parentBlock) {
+            this.parentBlock = parentBlock;
+        }
+
+        public virtual Map<String, Object> execute(Map<String, Object> variables) {
+            return null;
+        }
+    }
+
+    class VarStatement extends DefaultStatement {
         private String varName;
         private Object value;
 
@@ -1586,8 +1589,8 @@ public class Flow extends Func {
             this.value = value;
         }
 
-        public Map<String, Object> execute(Map<String, Object> variables) {
-            Object val = getComputedValue(this.value);
+        public override Map<String, Object> execute(Map<String, Object> variables) {
+            Object val = getComputedValue(this.value, this.parentBlock);
 
             variables.put(this.varName, val);
 
@@ -1595,7 +1598,7 @@ public class Flow extends Func {
         }
     }
 
-    class IfStatement implements IStatement {
+    class IfStatement extends DefaultStatement {
         private Object condition;
         private Block thenBlock;
         private Block elseBlock;
@@ -1608,12 +1611,12 @@ public class Flow extends Func {
             this.negate = negate;
         }
 
-        public Map<String, Object> execute(Map<String, Object> variables) {
+        public override Map<String, Object> execute(Map<String, Object> variables) {
             if(this.thenBlock == null) {
                 return variables;
             }
 
-            Boolean pass = toBoolean(getComputedValue(this.condition, variables));
+            Boolean pass = toBoolean(getComputedValue(this.condition, variables, this.parentBlock));
 
             if(negate) {
                 pass = !pass;
@@ -1632,7 +1635,7 @@ public class Flow extends Func {
         }
     }
 
-    class ForStatement implements IStatement {
+    class ForStatement extends DefaultStatement {
         private String varName;
         private Object initialValue;
         private Object endCheck;
@@ -1654,7 +1657,7 @@ public class Flow extends Func {
             this.body = body;
         }
 
-        public Map<String, Object> execute(Map<String, Object> variables) {
+        public override Map<String, Object> execute(Map<String, Object> variables) {
             if(this.body == null) {
                 return variables;
             }
@@ -1662,7 +1665,7 @@ public class Flow extends Func {
             Map<String, Object> contextVariables = new Map<String, Object>(variables);
 
             if(this.rangeValue != null) {
-                Object rawValue = getComputedValue(this.rangeValue, contextVariables);
+                Object rawValue = getComputedValue(this.rangeValue, contextVariables, this.parentBlock);
                 if(rawValue instanceof List<Object>) {
                     List<Object> values = toList(rawValue);
 
@@ -1706,11 +1709,11 @@ public class Flow extends Func {
                 }
             }
             else {
-                Object init = getComputedValue(this.initialValue, contextVariables);
+                Object init = getComputedValue(this.initialValue, contextVariables, this.parentBlock);
                 Object value = init;
                 contextVariables.put(this.varName, value);
                 while(true) {
-                    Boolean pass = toBoolean(getComputedValue(this.endCheck, contextVariables));
+                    Boolean pass = toBoolean(getComputedValue(this.endCheck, contextVariables, this.parentBlock));
                     if(!pass) {
                         break;
                     }
@@ -1727,7 +1730,7 @@ public class Flow extends Func {
                         continue;
                     }
 
-                    value = getComputedValue(this.nextStep, contextVariables);
+                    value = getComputedValue(this.nextStep, contextVariables, this.parentBlock);
                     contextVariables.put(this.varName, value);
                 }
             }
@@ -1736,7 +1739,7 @@ public class Flow extends Func {
         }
     }
 
-    class WhileStatement implements IStatement {
+    class WhileStatement extends DefaultStatement {
         private Object condition;
         private Block body;
 
@@ -1745,10 +1748,10 @@ public class Flow extends Func {
             this.body = body;
         }
 
-        public Map<String, Object> execute(Map<String, Object> variables) {
+        public override Map<String, Object> execute(Map<String, Object> variables) {
             Boolean pass = null;
             while(true) {
-                pass = toBoolean(getComputedValue(this.condition, variables));
+                pass = toBoolean(getComputedValue(this.condition, variables, this.parentBlock));
                 if(!pass) {
                     break;
                 }
@@ -1772,7 +1775,7 @@ public class Flow extends Func {
         }
     }
 
-    class SwitchStatement implements IStatement {
+    class SwitchStatement extends DefaultStatement {
         private Object switchValue;
         private List<Object> segments;
 
@@ -1781,15 +1784,15 @@ public class Flow extends Func {
             this.segments = segments;
         }
 
-        public Map<String, Object> execute(Map<String, Object> variables) {
+        public override Map<String, Object> execute(Map<String, Object> variables) {
             if(this.segments == null || this.segments.size() < 2) {
                 return variables;
             }
 
-            Object switchValue = getComputedValue(this.switchValue, variables);
+            Object switchValue = getComputedValue(this.switchValue, variables, this.parentBlock);
 
             for(Integer i = 0; i < this.segments.size() - 1; i += 2) {
-                Object conditionValue = getComputedValue(this.segments.get(i), variables);
+                Object conditionValue = getComputedValue(this.segments.get(i), variables, this.parentBlock);
 
                 Boolean pass = false;
                 if(conditionValue instanceof Boolean) {
@@ -1822,8 +1825,8 @@ public class Flow extends Func {
         }
     }
 
-    class DebugStatement implements IStatement {
-        public Map<String, Object> execute(Map<String, Object> variables) {
+    class DebugStatement extends DefaultStatement {
+        public override Map<String, Object> execute(Map<String, Object> variables) {
             for(String varName : variables.keySet()) {
                 Object value = variables.get(varName);
 
@@ -1834,15 +1837,15 @@ public class Flow extends Func {
         }
     }
 
-    class ReturnStatement implements IStatement {
+    class ReturnStatement extends DefaultStatement {
         private Object returnValue;
 
         public ReturnStatement(Object returnValue) {
             this.returnValue = returnValue;
         }
 
-        public Map<String, Object> execute(Map<String, Object> variables) {
-            Object value = getComputedValue(this.returnValue, variables);
+        public override Map<String, Object> execute(Map<String, Object> variables) {
+            Object value = getComputedValue(this.returnValue, variables, this.parentBlock);
 
             throw new ReturnException(value);
 
@@ -1850,16 +1853,16 @@ public class Flow extends Func {
         }
     }
 
-    class BreakStatement implements IStatement {
-        public Map<String, Object> execute(Map<String, Object> variables) {
+    class BreakStatement extends DefaultStatement {
+        public override Map<String, Object> execute(Map<String, Object> variables) {
             throw new BreakException(variables);
 
             return variables;
         }
     }
 
-    class ContinueStatement implements IStatement {
-        public Map<String, Object> execute(Map<String, Object> variables) {
+    class ContinueStatement extends DefaultStatement {
+        public override Map<String, Object> execute(Map<String, Object> variables) {
             throw new ContinueException(variables);
 
             return variables;
@@ -1870,6 +1873,8 @@ public class Flow extends Func {
         Object invoke();
 
         Object invoke(Map<String, Object> context);
+
+        void setBlock(Block body);
     }
 
     class VariableInvocation implements IInvocation {
@@ -1879,6 +1884,10 @@ public class Flow extends Func {
         public VariableInvocation(Block body, String varName) {
             this.body = body;
             this.varName = varName;
+        }
+
+        public void setBlock(Block body) {
+            this.body = body;
         }
 
         public Object invoke(Map<String, Object> context) {
@@ -1903,6 +1912,10 @@ public class Flow extends Func {
             this.vars = vars;
         }
 
+        public void setBlock(Block body) {
+            this.body = body;
+        }
+
         public override Object exec() {
             return this.invoke();
         }
@@ -1912,7 +1925,9 @@ public class Flow extends Func {
             for(Object var : this.vars) {
                 Object arg = null;
                 if(var instanceof IInvocation) {
-                    arg = ((IInvocation)var).invoke(context);
+                    IInvocation inv = (IInvocation)var;
+                    inv.setBlock(this.body);
+                    arg = inv.invoke(context);
                 }
                 else {
                     arg = var;
@@ -2027,7 +2042,7 @@ public class Flow extends Func {
             List<Object> mList = new List<Object>();
 
             for(Object deferred : deferredList) {
-                mList.add(getComputedValue(deferred));
+                mList.add(getComputedValue(deferred, null));
             }
 
             return mList;
@@ -2044,7 +2059,7 @@ public class Flow extends Func {
             Map<String, Object> mMap = new Map<String, Object>();
 
             for(String key : deferredMap.keySet()) {
-                mMap.put(key, getComputedValue(deferredMap.get(key)));
+                mMap.put(key, getComputedValue(deferredMap.get(key), null));
             }
 
             return mMap;
@@ -2055,6 +2070,8 @@ public class Flow extends Func {
      * Customized script engine for FlowScript
      * */
     class ScriptEngine {
+        private Block body;
+
         public ScriptEngine() {
         }
 
@@ -2071,7 +2088,7 @@ public class Flow extends Func {
         }
 
         private Object evalCall(Object callee, List<Object> arguments, Map<String, Object> context) {
-            Func f = (Func)getComputedValue(callee);
+            Func f = (Func)getComputedValue(callee, null);
             if(f == null) {
                 throw new FlowException('Cannot find function: ' + stringOf(callee));
             }
